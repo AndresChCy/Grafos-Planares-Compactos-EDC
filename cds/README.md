@@ -1,0 +1,1 @@
+# Aquí almacenaremos los archivos .sdsl que creemos (nuestras estructuras de datos compactas luego de ser construidas).

@@ -1,0 +1,3 @@
+[submodule "external/bench-lib"]
+	path = external/bench-lib
+	url = https://github.com/bletelier/bench-lib.git

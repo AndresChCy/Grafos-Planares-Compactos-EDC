@@ -1,0 +1,5 @@
+build
+.vscode
+*.csv
+!results/example_res.csv
+*.pdf
