@@ -1,8 +1,11 @@
 #include "grid_search.hpp"
 
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
+#include <cstdint>
 #include <iostream>
+#include <limits>
 #include <sstream>
 
 #ifndef _WIN32
@@ -291,6 +294,16 @@ Paths resolve_paths(
 {
     Paths p;
 
+#ifdef _WIN32
+    const char* exe_suffix = ".exe";
+#else
+    const char* exe_suffix = "";
+#endif
+
+    auto executable_name = [exe_suffix](const char* base) {
+        return std::string(base) + exe_suffix;
+    };
+
     if (argc > 1) p.graph_path = argv[1];
     if (argc > 2) p.build_exe = argv[2];
     if (argc > 3) p.compress_exe = argv[3];
@@ -308,29 +321,27 @@ Paths resolve_paths(
     }
 
     if (p.build_exe.empty()) {
-        auto exe_dir = fs::current_path();
-
         auto b = first_existing({
-            "build_tree",
-            "./build_tree",
-            exe_dir / "build_tree"
+            fs::path("build") / executable_name("build_tree"),
+            fs::path(executable_name("build_tree")),
+            fs::path(executable_name("./build_tree")),
+            fs::current_path() / executable_name("build_tree")
         });
 
         p.build_exe =
-            b ? *b : fs::path("./build_tree");
+            b ? *b : fs::path("build") / executable_name("build_tree");
     }
 
     if (p.compress_exe.empty()) {
-        auto exe_dir = fs::current_path();
-
         auto c = first_existing({
-            "compress_leaves",
-            "./compress_leaves",
-            exe_dir / "compress_leaves"
+            fs::path("build") / executable_name("compress_leaves"),
+            fs::path(executable_name("compress_leaves")),
+            fs::path(executable_name("./compress_leaves")),
+            fs::current_path() / executable_name("compress_leaves")
         });
 
         p.compress_exe =
-            c ? *c : fs::path("./compress_leaves");
+            c ? *c : fs::path("build") / executable_name("compress_leaves");
     }
 
     if (p.csv_path.empty()) {
@@ -347,4 +358,60 @@ void print_banner(const Paths& paths)
     std::cout << "compress_leaves:  " << paths.compress_exe << "\n";
     std::cout << "CSV output:       " << paths.csv_path << "\n";
     std::cout << "hash size:        " << paths.hash_size << "\n\n";
+}
+
+SetupCheck validate_setup(const Paths& paths)
+{
+    SetupCheck check;
+
+    if (!file_exists(paths.graph_path)) {
+        check.ok = false;
+        check.error = "No existe el archivo de grafo: " + paths.graph_path.string();
+        return check;
+    }
+
+    if (!file_exists(paths.build_exe)) {
+        check.ok = false;
+        check.error = "No existe el ejecutable build_tree: " + paths.build_exe.string();
+        return check;
+    }
+
+    if (!file_exists(paths.compress_exe)) {
+        check.ok = false;
+        check.error = "No existe el ejecutable compress_leaves: " + paths.compress_exe.string();
+        return check;
+    }
+
+    return check;
+}
+
+std::uint32_t read_node_count(const fs::path& graph_path)
+{
+    std::ifstream input(graph_path, std::ios::binary);
+    if (!input.is_open()) {
+        return 0U;
+    }
+
+    std::uint32_t nodes = 0;
+    input.read(reinterpret_cast<char*>(&nodes), sizeof(nodes));
+    if (!input) {
+        return 0U;
+    }
+
+    return nodes;
+}
+
+int max_real_level1_for(std::uint32_t nodes, int k1)
+{
+    if (nodes == 0 || k1 <= 1) {
+        return 0;
+    }
+
+    return static_cast<int>(std::ceil(std::log(static_cast<double>(nodes)) /
+                                      std::log(static_cast<double>(k1)))) - 1;
+}
+
+bool max_level1_is_valid(std::uint32_t nodes, int k1, int max_level1)
+{
+    return max_level1 <= max_real_level1_for(nodes, k1);
 }

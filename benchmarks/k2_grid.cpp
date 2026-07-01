@@ -1,99 +1,138 @@
-#include "k2_tree/grid_search.hpp"
-#include "bench-lib/benchmark.hpp"
+#include "tree_builder.hpp"
 
-
+#include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <string>
+#include <vector>
 
+namespace {
 
-int main(int argc, char* argv[]) {
-    
-    Paths paths;
+double elapsed_ms(const std::chrono::steady_clock::time_point& start,
+                  const std::chrono::steady_clock::time_point& end)
+{
+    return std::chrono::duration<double, std::milli>(end - start).count();
+}
 
-    paths.graph_path   = "input/tiger_map_hawaii.pg";
-    paths.build_exe    = "./build_tree";
-    paths.compress_exe = "./compress_leaves";
-    paths.csv_path     = "grid_search_k2_tree.csv";
-    paths.hash_size    = 4000000;
+std::uint64_t file_size_or_zero(const fs::path& path)
+{
+    std::error_code ec;
+    if (!fs::exists(path, ec) || ec) {
+        return 0ULL;
+    }
 
-    std::cout << "build_tree: " << BUILD_TREE_EXE << '\n';
-    std::cout << "compress:   " << COMPRESS_EXE << '\n';
+    auto size = fs::file_size(path, ec);
+    if (ec) {
+        return 0ULL;
+    }
 
-    // Grid recomendado para comenzar cerca de la documentación.
-    // Ajusta estas listas cuando quieras explorar más o menos.
-    const std::vector<int> k1_values = {2, 3, 4, 5, 6};
-    const std::vector<int> k2_values = {2, 3, 4};
-    const std::vector<int> max_level1_values = {4, 5, 6};
-    const std::vector<int> s_values = {18, 20, 22};
+    return static_cast<std::uint64_t>(size);
+}
 
-    std::ofstream csv(paths.csv_path, std::ios::out | std::ios::trunc);
+void write_csv_header(std::ofstream& csv)
+{
+    csv << "preset,k1,k2,max_level1,s,build_ms,save_ms,"
+           "tr_bytes,lv_bytes,il_bytes,voc_bytes,cil_bytes,compressed_bytes\n";
+}
+
+void write_csv_row(std::ofstream& csv,
+                   const K2TreePreset& preset,
+                   const K2TreeBuilder& builder,
+                   double build_ms,
+                   double save_ms)
+{
+    const fs::path base = builder.artifact_base();
+    const std::uint64_t tr_bytes = file_size_or_zero(base.string() + ".tr");
+    const std::uint64_t lv_bytes = file_size_or_zero(base.string() + ".lv");
+    const std::uint64_t il_bytes = file_size_or_zero(base.string() + ".il");
+    const std::uint64_t voc_bytes = file_size_or_zero(base.string() + ".voc");
+    const std::uint64_t cil_bytes = file_size_or_zero(base.string() + ".cil");
+    const std::uint64_t compressed_bytes = tr_bytes + voc_bytes + cil_bytes;
+
+    csv << preset.name << ","
+        << preset.k1 << ","
+        << preset.k2 << ","
+        << preset.max_level1 << ","
+        << preset.s << ","
+        << build_ms << ","
+        << save_ms << ","
+        << tr_bytes << ","
+        << lv_bytes << ","
+        << il_bytes << ","
+        << voc_bytes << ","
+        << cil_bytes << ","
+        << compressed_bytes << "\n";
+}
+
+} // namespace
+
+int main(int argc, char* argv[])
+{
+    fs::path graph_path = (argc > 1) ? fs::path(argv[1]) : fs::path("input/tiger_map_hawaii.pg");
+    fs::path output_root = (argc > 2) ? fs::path(argv[2]) : fs::path("cds/k2_trees");
+    fs::path csv_path = (argc > 3) ? fs::path(argv[3]) : fs::path("results/k2_tree_benchmark.csv");
+
+    fs::create_directories(output_root);
+    fs::create_directories(csv_path.parent_path());
+
+    std::ofstream csv(csv_path, std::ios::out | std::ios::trunc);
     if (!csv.is_open()) {
-        std::cerr << "No se pudo crear el CSV: " << paths.csv_path << "\n";
+        std::cerr << "No se pudo crear el CSV: " << csv_path << '\n';
         return 1;
     }
 
     write_csv_header(csv);
 
-    std::optional<RunMetrics> best_by_time;
-    std::optional<RunMetrics> best_by_space;
+    const std::vector<K2TreePreset> presets = {
+        K2TreeBuilder::small(),
+        K2TreeBuilder::large(),
+    };
 
-    for (int k1 : k1_values) {
-        for (int k2 : k2_values) {
-            for (int max_level1 : max_level1_values) {
-                for (int s : s_values) {
-                    std::cout << "Ejecutando K1=" << k1
-                              << " K2=" << k2
-                              << " maxLevel1=" << max_level1
-                              << " S=" << s << " ... ";
+    for (const auto& preset : presets) {
+        K2TreeBuilder builder(graph_path, preset, output_root);
 
-                    RunMetrics m = run_one_configuration(paths, k1, k2, max_level1, s);
-                    write_csv_row(csv, paths, m);
+        std::cout << "Construyendo " << preset.name << " -> "
+                  << builder.artifact_base() << '\n';
 
-                    if (m.status == "OK") {
-                        std::cout << "ok | "
-                                  << "build=" << m.build_ms << " ms, "
-                                  << "compress=" << m.compress_ms << " ms, "
-                                  << "space=" << m.compressed_bytes << " bytes\n";
-
-                        if (!best_by_time || m.total_ms < best_by_time->total_ms) {
-                            best_by_time = m;
-                        }
-                        if (!best_by_space || m.compressed_bytes < best_by_space->compressed_bytes) {
-                            best_by_space = m;
-                        }
-                    } else {
-                        std::cout << "fallo (" << m.status << ")\n";
-                    }
-                }
-            }
+        const auto build_start = std::chrono::steady_clock::now();
+        if (!builder.build()) {
+            std::cerr << "Fallo la construccion de " << preset.name << '\n';
+            continue;
         }
+        const auto build_end = std::chrono::steady_clock::now();
+
+        const auto save_start = std::chrono::steady_clock::now();
+        if (!builder.saveCompressed()) {
+            std::cerr << "Fallo la compresion/guardado de " << preset.name << '\n';
+            continue;
+        }
+        const auto save_end = std::chrono::steady_clock::now();
+
+        if (!builder.reloadCompressed()) {
+            std::cerr << "Fallo la recarga de " << preset.name << '\n';
+            continue;
+        }
+
+        const auto adjacency_zero = builder.adjacency(0);
+        if (!adjacency_zero.empty()) {
+            const auto first_target = adjacency_zero.front();
+            const bool ok = builder.contains(0, first_target);
+            std::cout << "  consulta ejemplo 0->" << first_target << " = "
+                      << (ok ? "ok" : "fallo") << '\n';
+        }
+
+        std::cout << "  artefactos en " << output_root << '\n';
+        std::cout << "  build=" << elapsed_ms(build_start, build_end) << " ms"
+                  << ", save=" << elapsed_ms(save_start, save_end) << " ms\n";
+
+        write_csv_row(csv,
+                      preset,
+                      builder,
+                      elapsed_ms(build_start, build_end),
+                      elapsed_ms(save_start, save_end));
     }
 
-    csv.close();
-
-    std::cout << "\n=== Mejor por tiempo total ===\n";
-    if (best_by_time) {
-        const auto& m = *best_by_time;
-        std::cout << "K1=" << m.k1
-                  << " K2=" << m.k2
-                  << " maxLevel1=" << m.max_level1
-                  << " S=" << m.s
-                  << " | total=" << m.total_ms << " ms\n";
-    } else {
-        std::cout << "No hubo ejecuciones exitosas.\n";
-    }
-
-    std::cout << "\n=== Mejor por espacio comprimido ===\n";
-    if (best_by_space) {
-        const auto& m = *best_by_space;
-        std::cout << "K1=" << m.k1
-                  << " K2=" << m.k2
-                  << " maxLevel1=" << m.max_level1
-                  << " S=" << m.s
-                  << " | compressed=" << m.compressed_bytes << " bytes\n";
-    } else {
-        std::cout << "No hubo ejecuciones exitosas.\n";
-    }
-
-    std::cout << "\nCSV generado en: " << paths.csv_path << "\n";
+    std::cout << "CSV generado en: " << csv_path << '\n';
     return 0;
 }

@@ -1031,7 +1031,7 @@ uint * compactAdjacencyList(TREP * trep,MREP * rep, int x){
 				//printf("Caso 5: x %d realvalue %d posInf %d\n",(i+(x%K2_2)*K2_2),realvalue, posInf);
 				for(i=0;i<K2_2;i++){
 
-					if(bitgetchar(&(trep->words[realvalue*trep->lenWords]),(i+(x%K2_2)*K2_2))){
+					if(bitgetchar(&(trep->words[realvalue*trep->lenWords]),(i+(trep->basey[trep->iniq]%K2_2)*K2_2))){
 
 						trep->info[0]++;
 						trep->info[trep->info[0]]=trep->basex[trep->iniq]+i+K2_2*j+trep->columna*trep->tamSubm;
@@ -1148,12 +1148,14 @@ uint * compactInverseList(TREP * trep,MREP * rep, int y){
 		nleaf = trep->element[trep->iniq]-rep->bt_len;
 		for(j=0;j<K2;j++){
 			nleafrelat = nleaf + (trep->basex[trep->iniq]/K2_2)+K2*j;
+
 			if(isBitSet(rep->bn,nleafrelat)){
 				posInf = rank(rep->bn,nleafrelat);
+
 				realvalue = accessFT(rep->compressIL,posInf);
 
 				for(i=0;i<K2_2;i++){
-					if(bitgetchar(&(trep->words[realvalue*trep->lenWords]),(i*K2_2+(y%K2_2)))){
+					if(bitgetchar(&(trep->words[realvalue*trep->lenWords]),(i*K2_2+(trep->basex[trep->iniq]%K2_2)))){
 						trep->info[0]++;
 						trep->info[trep->info[0]]=trep->basey[trep->iniq]+i+K2_2*j+trep->fila*trep->tamSubm;
 					}

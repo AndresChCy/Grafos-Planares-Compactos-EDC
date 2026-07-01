@@ -1,3 +1,7 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
@@ -35,3 +39,8 @@ typedef struct sFTRep {
 	uint * decompressFT(FTRep * listRep, uint n);
 	FTRep* loadFT(FILE * flist);
 	void destroyFT(FTRep * listRep);
+
+
+#ifdef __cplusplus
+}
+#endif
