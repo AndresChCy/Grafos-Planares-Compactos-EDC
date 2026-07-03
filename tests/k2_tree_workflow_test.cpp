@@ -44,8 +44,6 @@ int main()
         return 1;
     }
 
-    std::cerr << "\n===== ANTES DE RELOAD =====\n";
-
     const auto inv_before = builder.inverse(4);
     std::cerr << "inverse(4):";
     for (auto v : inv_before) {
@@ -79,8 +77,6 @@ int main()
         std::cerr << "reloadCompressed failed\n";
         return 1;
     }
-
-    std::cerr << "\n===== DESPUES DE RELOAD =====\n";
 
     const auto inv_after = builder.inverse(4);
     std::cerr << "inverse(4):";
@@ -135,6 +131,29 @@ int main()
     const auto adjacency_one = as_set(builder.adjacency(1));
     if (!(adjacency_one.count(2) == 1 && adjacency_one.size() == 1)) {
         std::cerr << "adjacency(1) check failed\n";
+        return 1;
+    }
+
+    // degree()
+    if (builder.degree(0) != 2 ||
+        builder.degree(1) != 1 ||
+        builder.degree(2) != 1 ||
+        builder.degree(3) != 1 ||
+        builder.degree(4) != 0) {
+        std::cerr << "degree check failed\n";
+        return 1;
+    }
+
+    // neighbors()
+    if (!builder.neighbors(0, 1) ||
+        !builder.neighbors(0, 3) ||
+        !builder.neighbors(1, 2) ||
+        !builder.neighbors(2, 4) ||
+        !builder.neighbors(3, 4) ||
+        builder.neighbors(1, 0) ||
+        builder.neighbors(4, 2) ||
+        builder.neighbors(4, 3)) {
+        std::cerr << "neighbors check failed\n";
         return 1;
     }
 

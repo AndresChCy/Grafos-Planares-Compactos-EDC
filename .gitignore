@@ -3,3 +3,11 @@ build
 *.csv
 !results/example_res.csv
 *.pdf
+
+
+# Representaciones k2-tree
+*.cil
+*.il
+*.lv
+*.tr
+*.voc

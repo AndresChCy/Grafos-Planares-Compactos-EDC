@@ -327,3 +327,23 @@ std::vector<std::uint32_t> K2TreeBuilder::inverse(std::uint32_t target) const
 
     return result;
 }
+
+std::size_t K2TreeBuilder::degree(std::uint32_t vertex) const
+{
+    if (!tree_) {
+        return 0;
+    }
+
+    unsigned int* raw = compactTreeAdjacencyList(tree_, vertex);
+
+    if (!raw) {
+        return 0;
+    }
+
+    return raw[0];
+}
+
+bool K2TreeBuilder::neighbors(std::uint32_t u, std::uint32_t v) const
+{
+    return contains(u, v);
+}

@@ -72,6 +72,9 @@ public:
 	const fs::path& output_root() const { return output_root_; }
 	const fs::path& artifact_base() const { return artifact_base_; }
 
+	std::size_t degree(std::uint32_t vertex) const;
+	bool neighbors(std::uint32_t u, std::uint32_t v) const;
+
 private:
 	struct Edge {
 		std::uint32_t source = 0;
