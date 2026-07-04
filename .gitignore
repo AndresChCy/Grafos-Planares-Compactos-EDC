@@ -3,3 +3,6 @@ build
 *.csv
 !results/example_res.csv
 *.pdf
+*.pg
+*.gz
+

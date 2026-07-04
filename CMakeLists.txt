@@ -11,6 +11,7 @@ add_library(my-project STATIC
 )
 set(BENCHLIB_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 add_subdirectory(external/bench-lib)
+add_subdirectory(external/sdsl)
 
 target_include_directories(my-project PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include

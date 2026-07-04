@@ -1,59 +1,58 @@
 #include <cassert>
+#include <string>
+#include <vector>
+#include <random>
+
 #include "bench-lib/benchmark.hpp"
+#include "sdsl/pemb.hpp"
+#include "complementary/Graph.hpp"
+#include "complementary/utils.hpp"
+
 #include "fib-lib/fib_tabulated.hpp"
 #include "fib-lib/fib_memoized.hpp"
 #include "fib-lib/fib_recursive.hpp" 
 
+inline void test_degree_pemb(pemb<>& pe, std::vector<int>& vertices){
+    for (int i = 0; i < vertices.size(); ++i) {
+        pe.degree(vertices[i]);
+    }
+}
+
 int main() {
-  std::vector<int> sizes = {10, 20, 30, 40};
-  FibLib::FibRecursive fr;
-  FibLib::FibMemoized fm;
-  FibLib::FibTabulated ft;
+  pemb<>* pe = nullptr;
+  std::vector<std::string> archivos = {"benchmarks/inputs/planar_embedding5000000.pg"};
+  std::random_device rd;
+	std::mt19937 gen(rd());
+
   std::string csv_name = "example_res";
-  for(size_t i = 0; i < sizes.size(); ++i) {
-    int sz = sizes[i];
+  for(size_t i = 0; i < archivos.size(); ++i) {
+    {
+      Graph g = read_graph_from_file(archivos[i].c_str());
+      pe = new pemb<>(g);
+    }
+    std::uniform_int_distribution<> dis(0, pe->vertices() - 1); //Para generar vertices aleatorios
+    std::vector<int> vertices;
+    vertices.reserve(1000);
+    for(int j = 0; j < 1000; ++j){
+        vertices.push_back(dis(gen));
+    }
+    assert(vertices.size() == 1000);
+
+
     BenchLib::Benchmark bench;
-    bench.add("fib_rec", [&fr, sz]() {
-      return fr.calc_fib(sz);
-    }).set_input_size(sz).set_label("fr");
 
-    bench.add("fib_mem", [&fm, sz]() {
-      return fm.calc_fib(sz);
-    }).set_input_size(sz).set_label("fm");
+    bench.add("degree_pemb", [&pe, &vertices]() {
+      test_degree_pemb(*pe,vertices);
+    }).set_label(archivos[i]);
 
-    bench.add("fib_tab", [&ft, sz]() {
-      return ft.calc_fib(sz);
-    }).set_input_size(sz).set_label("ft");
+    bench.run(32,16);
 
-    bench.run();
-    uint64_t r1 = bench.get_result<uint64_t>(0);
-		uint64_t r2 = bench.get_result<uint64_t>(1);
-		uint64_t r3 = bench.get_result<uint64_t>(2);
-    assert(r1 == r2);
-    assert(r2 == r3);
     if(i == 0) bench.write_csv(csv_name);
 		else bench.append_csv(csv_name);
+
+    delete pe;
+    pe = nullptr;
   }
-
-  sizes = {50, 60, 70, 80, 85, 90, 91, 92, 93};
-  for(auto sz: sizes) {
-
-    BenchLib::Benchmark bench;
-    bench.add("fib_mem", [&fm, sz]() {
-      return fm.calc_fib(sz);
-    }).set_input_size(sz).set_label("fm");
-
-    bench.add("fib_tab", [&ft, sz]() {
-      return ft.calc_fib(sz);
-    }).set_input_size(sz).set_label("ft");
-
-    bench.run();
-    uint64_t r1 = bench.get_result<uint64_t>(0);
-		uint64_t r2 = bench.get_result<uint64_t>(1);
-    assert(r1 == r2);
-    bench.append_csv(csv_name);
-  }
-
 
   return 0;
 }
