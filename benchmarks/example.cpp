@@ -117,10 +117,20 @@ int main(int argc, char* argv[]) {
   / (1024*1024));
 
     bench.add("degree_k2tree_large", [&k2_tree_large, &vertices](){
-      test_neighbour_k2tree(k2_tree_large,vertices);
+      test_degree_k2tree(k2_tree_large,vertices);
     }).set_label(archivos[i]).set_size_in_megabytes(k2_tree_large.compressionSizes().compressed_bytes
   / (1024*1024));
 
+    bench.add("neighbours_k2tree_small", [&k2_tree_small, &vertices](){
+      test_neighbour_k2tree(k2_tree_small, vertices);
+    }).set_label(archivos[i]).set_size_in_megabytes(k2_tree_small.compressionSizes().compressed_bytes 
+  / (1024*1024));
+
+    bench.add("neihbours_k2tree_large", [&k2_tree_large, &vertices](){
+      test_neighbour_k2tree(k2_tree_large,vertices);
+    }).set_label(archivos[i]).set_size_in_megabytes(k2_tree_large.compressionSizes().compressed_bytes
+  / (1024*1024));
+  
     bench.add("degree_ady_list", [&g,&vertices](){
       test_degree_graph(g,vertices);
     }).set_label(archivos[i]).set_size_in_megabytes((2*g.vertices()*sizeof(int) + g.edges()* (3*sizeof(int)
