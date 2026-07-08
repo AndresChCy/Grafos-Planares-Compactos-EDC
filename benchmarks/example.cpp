@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
   std::random_device rd;
 	std::mt19937 gen(rd());
 
-  std::string csv_name = "example_res";
+  std::string csv_name = "degree_and_neighbours";
   const std::vector<K2TreePreset> presets = {
         K2TreeBuilder::small(),
         K2TreeBuilder::large(),
@@ -95,7 +95,10 @@ int main(int argc, char* argv[]) {
     }
     assert(vertices.size() == 2000);
 
-
+    assert(pe->degree(0) == k2_tree_small.degree(0));
+    assert(neighbours(*pe,0,1) == k2_tree_large.neighbors(0,1));
+    assert(k2_tree_large.neighbors(0,1) == g.neighbours(0,1));
+    
     BenchLib::Benchmark bench;
 
     bench.add("degree_pemb", [&pe, &vertices]() {
@@ -108,19 +111,23 @@ int main(int argc, char* argv[]) {
 
     bench.add("degree_k2tree_small", [&k2_tree_small, &vertices](){
       test_degree_k2tree(k2_tree_small, vertices);
-    }).set_label(archivos[i]);
+    }).set_label(archivos[i]).set_size_in_megabytes(k2_tree_small.compressionSizes().compressed_bytes 
+  / (1024*1024));
 
     bench.add("degree_k2tree_large", [&k2_tree_large, &vertices](){
       test_neighbour_k2tree(k2_tree_large,vertices);
-    }).set_label(archivos[i]);
+    }).set_label(archivos[i]).set_size_in_megabytes(k2_tree_large.compressionSizes().compressed_bytes
+  / (1024*1024));
 
     bench.add("degree_ady_list", [&g,&vertices](){
       test_degree_graph(g,vertices);
-    }).set_label(archivos[i]);
+    }).set_label(archivos[i]).set_size_in_megabytes((2*g.vertices()*sizeof(int) + g.edges()* (3*sizeof(int)
+  + sizeof(bool)) + 2*sizeof(int))/(1024*1024) );
 
     bench.add("neighbours_ady_list", [&g,&vertices](){
       test_neighbours_graph(g,vertices);
-    }).set_label(archivos[i]);
+    }).set_label(archivos[i]).set_size_in_megabytes((2*g.vertices()*sizeof(int) + g.edges()* (3*sizeof(int)
+  + sizeof(bool)) + 2*sizeof(int))/(1024*1024) );
     
     bench.run(32,16);
 
@@ -128,7 +135,7 @@ int main(int argc, char* argv[]) {
 		else bench.append_csv(csv_name);
 
     delete pe;
-    pe = nullptr;
+  
   }
 
   return 0;

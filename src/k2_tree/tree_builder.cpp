@@ -21,14 +21,6 @@ extern unsigned int* positionInTH;
 
 namespace {
 
-std::vector<char> to_c_buffer(const fs::path& path)
-{
-    std::string text = path.string();
-    std::vector<char> buffer(text.begin(), text.end());
-    buffer.push_back('\0');
-    return buffer;
-}
-
 bool write_voc_and_cil(TREP* trep, const fs::path& base_path)
 {
     const std::string base = base_path.string();
@@ -102,6 +94,7 @@ std::vector<char> to_c_buffer(const fs::path& path)
     buffer.push_back('\0');
     return buffer;
 }
+
 
 std::uint64_t file_size_or_zero(const fs::path& path)
 {
