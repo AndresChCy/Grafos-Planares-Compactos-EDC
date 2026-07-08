@@ -78,6 +78,54 @@ int hasAnyBitSet(unsigned char * b){
 	}	
 
 
+/*------------------------------------------------------------------
+ Buffers dinamicos de TREP (element/basex/basey/basep1/basep2/baseq1/
+ baseq2/info/info2). Antes se reservaban de una vez con tamano fijo
+ MAX_INFO (~100 millones de elementos, ~400MB por arreglo) sin importar
+ el tamano real del grafo, lo que disparaba el pico de memoria virtual
+ a varios GB incluso para grafos pequenos. Ahora arrancan chicos
+ (K2TREE_INITIAL_QUEUE_CAP / K2TREE_INITIAL_INFO_CAP) y crecen al doble
+ solo cuando realmente se necesita mas espacio.
+------------------------------------------------------------------*/
+static void growQueueCapacity(TREP *trep, uint needed){
+	if(needed <= trep->queueCap) return;
+	uint newCap = trep->queueCap ? trep->queueCap : K2TREE_INITIAL_QUEUE_CAP;
+	while(newCap < needed) newCap *= 2;
+	trep->element = (uint *) realloc(trep->element, sizeof(uint)*newCap);
+	trep->basex   = (uint *) realloc(trep->basex,   sizeof(uint)*newCap);
+	trep->basey   = (uint *) realloc(trep->basey,   sizeof(uint)*newCap);
+	trep->queueCap = newCap;
+}
+
+static void growRangeCapacity(TREP *trep, uint needed){
+	growQueueCapacity(trep, needed); // element/basex/basey comparten el mismo indice
+	if(needed <= trep->rangeCap) return;
+	uint newCap = trep->rangeCap ? trep->rangeCap : K2TREE_INITIAL_QUEUE_CAP;
+	while(newCap < needed) newCap *= 2;
+	trep->basep1 = (uint *) realloc(trep->basep1, sizeof(uint)*newCap);
+	trep->basep2 = (uint *) realloc(trep->basep2, sizeof(uint)*newCap);
+	trep->baseq1 = (uint *) realloc(trep->baseq1, sizeof(uint)*newCap);
+	trep->baseq2 = (uint *) realloc(trep->baseq2, sizeof(uint)*newCap);
+	trep->rangeCap = newCap;
+}
+
+static void growInfoCapacity(TREP *trep, uint needed){
+	if(needed <= trep->infoCap) return;
+	uint newCap = trep->infoCap ? trep->infoCap : K2TREE_INITIAL_INFO_CAP;
+	while(newCap < needed) newCap *= 2;
+	trep->info = (uint *) realloc(trep->info, sizeof(uint)*newCap);
+	trep->infoCap = newCap;
+}
+
+static void growInfo2Capacity(TREP *trep, uint needed){
+	if(needed <= trep->info2Cap) return;
+	uint newCap = trep->info2Cap ? trep->info2Cap : K2TREE_INITIAL_INFO_CAP;
+	while(newCap < needed) newCap *= 2;
+	trep->info2[0] = (uint *) realloc(trep->info2[0], sizeof(uint)*newCap);
+	trep->info2[1] = (uint *) realloc(trep->info2[1], sizeof(uint)*newCap);
+	trep->info2Cap = newCap;
+}
+
 	QUEUE * AddItem (QUEUE * listpointer, NODE * elem, int cantx, int canty) {
 
   /*QUEUE * lp = listpointer;
@@ -143,6 +191,7 @@ void ClearQueue (QUEUE * listpointer) {
 
 void AddItem2 (TREP *trep, int elem, int cantx,int canty) {
 	if(trep->iniq!=-1){
+		growQueueCapacity(trep, (uint)(trep->finq+2));
 		trep->finq++;
 		trep -> element[trep->finq] = elem;
 		trep -> basex[trep->finq] = cantx;
@@ -150,6 +199,7 @@ void AddItem2 (TREP *trep, int elem, int cantx,int canty) {
 
 	}
 	else{
+		growQueueCapacity(trep, 1);
 		trep->iniq=0;
 		trep->finq=0;
 		trep -> element[trep->iniq] = elem;
@@ -165,6 +215,7 @@ void RemoveItem2 (TREP * trep) {
 
 void AddItem3 (TREP *trep, int elem, int cantx,int canty, int p1, int p2, int q1, int q2) {
 	if(trep->iniq!=-1){
+		growRangeCapacity(trep, (uint)(trep->finq+2));
 		trep->finq++;
 		trep -> element[trep->finq] = elem;
 		trep -> basex[trep->finq] = cantx;
@@ -176,6 +227,7 @@ void AddItem3 (TREP *trep, int elem, int cantx,int canty, int p1, int p2, int q1
 
 	}
 	else{
+		growRangeCapacity(trep, 1);
 		trep->iniq=0;
 		trep->finq=0;
 		trep -> element[trep->iniq] = elem;
@@ -1033,6 +1085,7 @@ uint * compactAdjacencyList(TREP * trep,MREP * rep, int x){
 
 					if(bitgetchar(&(trep->words[realvalue*trep->lenWords]),(i+(trep->basey[trep->iniq]%K2_2)*K2_2))){
 
+						growInfoCapacity(trep, trep->info[0]+2);
 						trep->info[0]++;
 						trep->info[trep->info[0]]=trep->basex[trep->iniq]+i+K2_2*j+trep->columna*trep->tamSubm;
 						//printf("--- link %d , base %d ahora %d, %d\n", trep->basex[trep->iniq]+i+K2_2*j+trep->columna*trep->tamSubm,trep->basex[trep->iniq],i+K2_2*j, trep->columna );
@@ -1156,6 +1209,7 @@ uint * compactInverseList(TREP * trep,MREP * rep, int y){
 
 				for(i=0;i<K2_2;i++){
 					if(bitgetchar(&(trep->words[realvalue*trep->lenWords]),(i*K2_2+(trep->basex[trep->iniq]%K2_2)))){
+						growInfoCapacity(trep, trep->info[0]+2);
 						trep->info[0]++;
 						trep->info[trep->info[0]]=trep->basey[trep->iniq]+i+K2_2*j+trep->fila*trep->tamSubm;
 					}
@@ -1376,17 +1430,33 @@ TREP * createTreeRep(uint nodesOrig,ulong edges,uint part,uint subm, uint max_re
 
 
 
-    trep->info = (uint *)malloc(sizeof(uint)*MAX_INFO);
+    // Los buffers de cola/resultado arrancan chicos y crecen dinamicamente
+    // (ver growQueueCapacity/growInfoCapacity/growInfo2Capacity). Antes se
+    // reservaban de una vez con MAX_INFO (~400MB cada uno), sin relacion con
+    // el tamano real del grafo.
+    trep->info = (uint *)malloc(sizeof(uint)*K2TREE_INITIAL_INFO_CAP);
+    trep->infoCap = K2TREE_INITIAL_INFO_CAP;
 
-    trep->info2[0] = (uint *)malloc(sizeof(uint)*MAX_INFO);
+    trep->info2[0] = (uint *)malloc(sizeof(uint)*K2TREE_INITIAL_INFO_CAP);
+    trep->info2[1] = (uint *)malloc(sizeof(uint)*K2TREE_INITIAL_INFO_CAP);
+    trep->info2Cap = K2TREE_INITIAL_INFO_CAP;
 
-    trep->info2[1] = (uint *)malloc(sizeof(uint)*MAX_INFO);
+    trep->element = (uint *)malloc(sizeof(uint)*K2TREE_INITIAL_QUEUE_CAP);
+    trep->basex = (uint *)malloc(sizeof(uint)*K2TREE_INITIAL_QUEUE_CAP);
+    trep->basey = (uint *)malloc(sizeof(uint)*K2TREE_INITIAL_QUEUE_CAP);
+    trep->queueCap = K2TREE_INITIAL_QUEUE_CAP;
 
-    trep->element = (uint *)malloc(sizeof(uint)*MAX_INFO);	
-
-    trep->basex = (uint *)malloc(sizeof(uint)*MAX_INFO);
-
-    trep->basey = (uint *)malloc(sizeof(uint)*MAX_INFO);
+    // basep1/basep2/baseq1/baseq2 solo los usa AddItem3 (compactRangeQuery),
+    // que nunca se invoca sobre el TREP que arma createTreeRep durante el
+    // build (solo sobre el TREP final que devuelve loadTreeRepresentation).
+    // Se inicializan en NULL para que destroyTreeRepresentation() los pueda
+    // liberar de forma segura (free(NULL) no hace nada) y, si algun dia se
+    // usan aqui tambien, growRangeCapacity los reserva bajo demanda.
+    trep->basep1 = NULL;
+    trep->basep2 = NULL;
+    trep->baseq1 = NULL;
+    trep->baseq2 = NULL;
+    trep->rangeCap = 0;
 
     trep->iniq = -1;
     trep->finq =-1;
@@ -1548,16 +1618,25 @@ TREP * loadTreeRepresentation(char * basename){
 
 
 
-	trep->info = (uint *)malloc(sizeof(uint)*MAX_INFO);
-	trep->info2[0] = (uint *)malloc(sizeof(uint)*MAX_INFO);
-	trep->info2[1] = (uint *)malloc(sizeof(uint)*MAX_INFO);
-	trep->element = (uint *)malloc(sizeof(uint)*MAX_INFO);	
-	trep->basex = (uint *)malloc(sizeof(uint)*MAX_INFO);
-	trep->basey = (uint *)malloc(sizeof(uint)*MAX_INFO);
-	trep->basep1 = (uint *)malloc(sizeof(uint)*MAX_INFO);
-	trep->basep2 = (uint *)malloc(sizeof(uint)*MAX_INFO);
-	trep->baseq1 = (uint *)malloc(sizeof(uint)*MAX_INFO);
-	trep->baseq2 = (uint *)malloc(sizeof(uint)*MAX_INFO);
+	// Igual que en createTreeRep: buffers chicos que crecen bajo demanda en
+	// vez de reservar MAX_INFO (~400MB) por arreglo sin importar el grafo.
+	trep->info = (uint *)malloc(sizeof(uint)*K2TREE_INITIAL_INFO_CAP);
+	trep->infoCap = K2TREE_INITIAL_INFO_CAP;
+
+	trep->info2[0] = (uint *)malloc(sizeof(uint)*K2TREE_INITIAL_INFO_CAP);
+	trep->info2[1] = (uint *)malloc(sizeof(uint)*K2TREE_INITIAL_INFO_CAP);
+	trep->info2Cap = K2TREE_INITIAL_INFO_CAP;
+
+	trep->element = (uint *)malloc(sizeof(uint)*K2TREE_INITIAL_QUEUE_CAP);
+	trep->basex = (uint *)malloc(sizeof(uint)*K2TREE_INITIAL_QUEUE_CAP);
+	trep->basey = (uint *)malloc(sizeof(uint)*K2TREE_INITIAL_QUEUE_CAP);
+	trep->queueCap = K2TREE_INITIAL_QUEUE_CAP;
+
+	trep->basep1 = (uint *)malloc(sizeof(uint)*K2TREE_INITIAL_QUEUE_CAP);
+	trep->basep2 = (uint *)malloc(sizeof(uint)*K2TREE_INITIAL_QUEUE_CAP);
+	trep->baseq1 = (uint *)malloc(sizeof(uint)*K2TREE_INITIAL_QUEUE_CAP);
+	trep->baseq2 = (uint *)malloc(sizeof(uint)*K2TREE_INITIAL_QUEUE_CAP);
+	trep->rangeCap = K2TREE_INITIAL_QUEUE_CAP;
 
 	trep->iniq = -1;
 	trep->finq =-1;
@@ -1738,6 +1817,49 @@ void destroyTreeRepresentation(TREP *trep){
 
 	free(trep->words);
 	free(trep);		
+}
+
+/*------------------------------------------------------------------
+ Libera un TREP que ya paso por saveBeforeCompressInformationLeaves()
+ y compressInformationLeaves() (ese es el orden que usa
+ K2TreeBuilder::build() en tree_builder.cpp). En ese punto, para cada
+ submatriz, bt/bn ya fueron destruidos y los buffers de cola propios de
+ trep (info/info2/element/basex/basey/div_level_table1/div_level_table2)
+ ya fueron liberados por saveBeforeCompressInformationLeaves(); lo unico
+ que sigue vivo es rep->leavesInf, rep->compressIL (recien creado por
+ compressInformationLeaves), el arreglo de submatrices, basep1/basep2/
+ baseq1/baseq2 (si se llegaron a reservar) y trep->words.
+
+ Se usa para liberar el TREP "de construccion" apenas queda volcado a
+ disco (.tr/.lv/.il/.voc/.cil), en vez de dejarlo filtrado durante toda
+ la vida del K2TreeBuilder mientras se vuelve a leer la version final
+ desde disco (ver K2TreeBuilder::build()). Usar destroyTreeRepresentation()
+ aqui en su lugar es incorrecto: intentaria liberar bt/bn de nuevo
+ (double free/use-after-free), porque ya fueron destruidos antes.
+------------------------------------------------------------------*/
+void destroyTreeRepAfterCompress(TREP * trep){
+	int i,j;
+	MREP * rep;
+	for(i=0;i<trep->part;i++){
+		for(j=0;j<trep->part;j++){
+			rep = trep->submatrices[i][j];
+			if(rep->numberOfEdges>0){
+				destroyFT(rep->compressIL);
+			}
+			free(rep->leavesInf);
+			free(rep);
+		}
+		free(trep->submatrices[i]);
+	}
+	free(trep->submatrices);
+
+	free(trep->basep1);
+	free(trep->basep2);
+	free(trep->baseq1);
+	free(trep->baseq2);
+
+	free(trep->words);
+	free(trep);
 }
 
 void   compressInformationLeaves(TREP * trep){
@@ -2046,10 +2168,14 @@ void   compressInformationLeaves(TREP * trep){
 			for(i=0;i<trep->part;i++){
 				for(j=0;j<trep->part;j++){
 					destroyBitRankW32Int(trep->submatrices[i][j]->bt);
-					destroyBitRankW32Int(trep->submatrices[i][j]->bn);}
+					destroyBitRankW32Int(trep->submatrices[i][j]->bn);
+					trep->submatrices[i][j]->bt = NULL;
+					trep->submatrices[i][j]->bn = NULL;}
 				}
 				free(trep->div_level_table1);
 				free(trep->div_level_table2);
+				trep->div_level_table1 = NULL;
+				trep->div_level_table2 = NULL;
 
 				free(trep->info2[0]);
 				free(trep->info2[1]);
@@ -2057,6 +2183,16 @@ void   compressInformationLeaves(TREP * trep){
 				free(trep->element);
 				free(trep->basex);
 				free(trep->basey);
+				// Se dejan en NULL: ya se liberaron aqui a mitad de pipeline
+				// (para no acarrear estos buffers de cola durante
+				// compressInformationLeaves) y no deben liberarse de nuevo
+				// despues, p.ej. desde destroyTreeRepAfterCompress().
+				trep->info2[0] = NULL;
+				trep->info2[1] = NULL;
+				trep->info = NULL;
+				trep->element = NULL;
+				trep->basex = NULL;
+				trep->basey = NULL;
 
 
 		/*FIn de destroy*/
@@ -2143,210 +2279,18 @@ void   compressInformationLeaves(TREP * trep){
 	fclose(fvil);   
 				//FIN GUARDADO
 
-	
-	
-	unsigned char * ilchar = (unsigned char *) malloc(sizeof(unsigned char)*totalLeaves*K2_3_char);
-	
-	
-	initialize(totalLeaves);
-	//Creación del vocabulario
-	uint ilpos=0;
-	uint jj;
-	for(fila=0;fila<trep->part;fila++){
-		for(columna=0;columna<trep->part;columna++){
-			rep=trep->submatrices[fila][columna];
-			if(trep->submatrices[fila][columna]->numberOfEdges==0)
-				continue;
-			for(i=0;i<rep->nleaves;i++){
-				
-				//Usando una hash para el vocabulario...
-				aWord=&(ilchar[ilpos]);  //the word parsed.
-				
-				for(j=0;j<K2_3;j++){
-					if(bitget(rep->leavesInf,i*K2_3+j))
-						bitsetchar(aWord,j);
-					else
-						bitcleanchar(aWord,j);
-					
-				}
-
-				size= K2_3_char;
-				j = search ((unsigned char *)aWord, size, &addrInTH );
-
-				if (j==zeroNode) {
-					insertElement ((unsigned char *) aWord, size, &addrInTH);
-					hash[addrInTH].weight = 0;
-					hash[addrInTH].size = 0;
-					hash[addrInTH].len = K2_3_char;
-					positionInTH[zeroNode] = addrInTH;
-					zeroNode++;
-				}
-
-				hash[addrInTH].weight +=1;
-
-				ilpos+=K2_3_char;		
-			}
-		}
-	}		
-	
-	
-	trep->zeroNode = zeroNode;
-	trep->lenWords = K2_3_char;
-	
-	//Compresion de hojas
-	
-	int k=0;
-	// Sorting the vocabulary by frequency.
-
-	{	//Moves all the words with frequency = 1 to the end of the vocabulary.
-		register int ii;
-		register int kk;
-
-		kk=zeroNode-1;
-		ii=0;
-		while (ii<kk){
-			while ((hash[positionInTH[ii]].weight!=1) && (ii <kk)) { ii++; }
-			while ((hash[positionInTH[kk]].weight==1) && (ii <kk)) { kk--; }
-
-			if (ii<kk){
-				swap(&positionInTH[ii], &positionInTH[kk]);
-				kk--;
-				ii++;
-			}
-		}
-
-		//k=ii; 
-		k=ii+1; //the lenght of the vector to be sorted with qsort. So v[0 .. k-1]
-	}
-
-	//Aplies qsort to the words with frequency > 1.
-	qsort(positionInTH,k,sizeof(unsigned int),comparaFrecListaDesc);
-
-	//Generates codes sequentially
-
-	/* Compresion ETDC
-	GeneraCodigosETDC (zeroNode);
-	*/
-	
-	ulong totalLeavesCount=0;
-	for(i=0;i<zeroNode;i++){
-		hash[positionInTH[i]].codeword = i;
-		totalLeavesCount += hash[positionInTH[i]].weight;
-	}
-	
-
-	/********************** Beginning of the second pass **********************/
-	
-	uint icont=0;
-
-	unsigned int codeword;
-	unsigned int tam;
-	
-
-				//Compactando información de las hojas...
-
-	ilpos=0;
-	for(fila=0;fila<trep->part;fila++){
-		for(columna=0;columna<trep->part;columna++){
-			rep=trep->submatrices[fila][columna];
-			if(trep->submatrices[fila][columna]->numberOfEdges==0)
-				continue;
-			unsigned int tamTotal = 0;
-			uint * listIL = (uint *) malloc(sizeof(uint)*rep->nleaves);
-			uint listILCount =0;
-
-
-			for(i=0;i<rep->nleaves;i++){
-				aWord=&(ilchar[ilpos]);  //the word parsed.
-				size = K2_3_char;
-				j = search ((unsigned char *)aWord, size, &addrInTH );
-
-				listIL[listILCount++]=hash[addrInTH].codeword;
-
-				ilpos+=K2_3_char;		
-
-			}
-
-
-
-			rep->compressIL = createFT(listIL,rep->nleaves);
-
-			free(listIL);
-		}
-	}
-	free(ilchar);
-
-	trep->words = (unsigned char *) malloc(sizeof(unsigned char)*trep->zeroNode*trep->lenWords);
-
-	int wc = 0;
-	for (i=0;i<zeroNode;i++){
-		for(j=0;j<trep->lenWords;j++){
-			trep->words[wc++]=hash[positionInTH[i]].word[j];
-		}
-	}
-
-
-
-	/* SEGUNDA PARTE DE SAVETREE*/
-
-	strcpy(filename,basename);
-	strcat(filename,".voc");
-	FILE * fv = fopen(filename,"w");
-
-	fwrite(&(trep->part),sizeof(uint),1,fv);
-	fwrite(&(trep->tamSubm),sizeof(uint),1,fv);
-
-	fwrite(&(trep->numberOfNodes),sizeof(uint),1,fv);
-	fwrite(&(trep->numberOfEdges),sizeof(ulong),1,fv);
-
-	fwrite(&(trep->repK1),sizeof(uint),1,fv);
-	fwrite(&(trep->repK2),sizeof(uint),1,fv);
-	fwrite(&(trep->maxRealLevel1),sizeof(uint),1,fv);
-	fwrite(&(trep->maxLevel1),sizeof(uint),1,fv);
-	fwrite(&(trep->maxLevel2),sizeof(uint),1,fv);
-
-		//  fwrite(&(trep->maxLevel),sizeof(uint),1,fv);
-		//  
-		  fwrite(&trep->zeroNode,sizeof(uint),1,fv); //stores the number of words of the vocabulary
-		  fwrite(&trep->lenWords,sizeof(uint),1,fv);
-			//Writes the vocabulary to disk.
-
-		  for (i=0;i<zeroNode;i++)
-		  	fwrite(hash[positionInTH[i]].word,sizeof(char),trep->lenWords,fv);
-
-		  fclose(fv);
-		  
-		  strcpy(filename,basename);
-		  strcat(filename,".cil");
-		  FILE * fi = fopen(filename,"w");
-
-
-		  for(fila=0;fila<part;fila++){
-		  	for(columna=0;columna<part;columna++){  
-		  		rep=trep->submatrices[fila][columna];
-
-		  		fwrite(&(rep->numberOfNodes),sizeof(uint),1,fi);
-		  		fwrite(&(rep->numberOfEdges),sizeof(ulong),1,fi);
-		  		if(trep->submatrices[fila][columna]->numberOfEdges==0)
-		  			continue;
-		  		fwrite(&(rep->cutBt),sizeof(uint),1,fi);
-		  		fwrite(&(rep->lastBt1_len),sizeof(uint),1,fi);
-		  		fwrite(&(rep->nleaves),sizeof(uint),1,fi);
-		  		saveFT(rep->compressIL,fi);
-		  	}
-		  }
-		  fclose(fi);   
-
-
-
-
-
-		  free(filename);
-
-
-
-
-
+	// A partir de aqui, compressInformationLeaves() (llamada justo despues en
+	// K2TreeBuilder::build()) recalcula el vocabulario de hojas desde cero y
+	// vuelve a escribir .voc/.cil. El bloque que habia aqui antes (desde el
+	// malloc de ilchar hasta el free(filename) original) hacia exactamente
+	// el mismo trabajo por adelantado -- otro initialize()/hash de vocabulario,
+	// otro createFT() por submatriz, otro trep->words -- y esos resultados
+	// se descartaban sin liberar en cuanto compressInformationLeaves() los
+	// pisaba. Se elimina esa pasada duplicada: ahorra el trabajo de comprimir
+	// las hojas dos veces y una fuga de memoria (MemoryManager + hash +
+	// FTRep + trep->words de la primera pasada, nunca liberados).
+	free(buffer);
+	free(filename);
 }
 
 
@@ -2696,6 +2640,7 @@ void compactRangeQuery(TREP * trep, MREP * rep,uint p1, uint p2, uint q1, uint q
 						for(jj=q1new;jj<=q2new;jj++)
 
 							if(bitgetchar(&(trep->words[realvalue*trep->lenWords]),(jj%K2_2+(ii%K2_2)*K2_2))){
+								growInfo2Capacity(trep, trep->info2[0][0]+2);
 								trep->info2[0][0]++;
 								trep->info2[0][trep->info2[0][0]]=dp+i*K2_2+ii+trep->fila*trep->tamSubm;
 								trep->info2[1][trep->info2[0][0]]=dq+j*K2_2+jj+trep->columna*trep->tamSubm;

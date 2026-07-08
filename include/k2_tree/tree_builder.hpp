@@ -37,6 +37,7 @@ unsigned int compactTreeCheckLink(TREP* trep, unsigned int x, unsigned int y);
 unsigned int* compactTreeAdjacencyList(TREP* trep, int x);
 unsigned int* compactTreeInverseList(TREP* trep, int y);
 void destroyTreeRepresentation(TREP* trep);
+void destroyTreeRepAfterCompress(TREP* trep);
 }
 
 struct K2TreePreset {

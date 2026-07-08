@@ -266,8 +266,26 @@ bool K2TreeBuilder::build()
     std::cerr << "build: write_voc_and_cil\n";
     if (!write_voc_and_cil(trep, artifact_base_)) {
         std::cerr << "build: write_voc_and_cil failed\n";
+        destroyTreeRepAfterCompress(trep);
         return false;
     }
+
+    // `trep` ya quedo completamente volcado a disco (.tr/.lv/.il/.voc/.cil).
+    // A partir de aqui la version "de verdad" es la que se relee desde disco
+    // en `tree_` (loadTreeRepresentation, mas abajo), asi que liberamos este
+    // TREP intermedio en vez de dejarlo filtrado (leak) durante toda la vida
+    // del K2TreeBuilder. Antes esto duplicaba en memoria toda la estructura
+    // comprimida (bitmaps bt/bn + hojas) durante cada build().
+    //
+    // Importante: usamos destroyTreeRepAfterCompress() y NO
+    // destroyTreeRepresentation(). saveBeforeCompressInformationLeaves() (mas
+    // arriba) ya destruyo bt/bn de cada submatriz y ya libero los buffers de
+    // cola propios de trep como parte de su propio manejo de memoria a mitad
+    // de pipeline; volver a llamar destroyTreeRepresentation() aqui
+    // liberaria esos mismos punteros por segunda vez (double free /
+    // use-after-free).
+    destroyTreeRepAfterCompress(trep);
+    trep = nullptr;
 
     if (tree_) {
         destroyTreeRepresentation(tree_);

@@ -9,7 +9,9 @@
 
 #include "bitrankw32int.h"
 #include "basic.h"
-#define MAX_INFO 1024*1024*100+10 //1
+#define MAX_INFO 1024*1024*100+10 //1  // legacy: ya no se usa para reservar buffers
+#define K2TREE_INITIAL_QUEUE_CAP 1024u  // capacidad inicial de las colas de BFS
+#define K2TREE_INITIAL_INFO_CAP  1024u  // capacidad inicial de las listas de resultado
 
 #define K1 4
 #define K2 2
@@ -116,11 +118,22 @@ typedef struct treeRep{
 
     int iniq;
     int finq;
-    
+
+    // Capacidad actual (en elementos) de cada buffer dinamico. Estos buffers
+    // se usan como colas de BFS (element/basex/basey/basep1/basep2/baseq1/baseq2)
+    // y como listas de resultado (info/info2). Antes tenian tamano fijo
+    // MAX_INFO (~100 millones de elementos = ~400MB cada uno) sin importar el
+    // tamano real del grafo. Ahora crecen dinamicamente con growQueueCapacity/
+    // growRangeCapacity/growInfoCapacity/growInfo2Capacity (ver kTree.c).
+    uint queueCap;   // capacidad de element/basex/basey
+    uint rangeCap;   // capacidad de basep1/basep2/baseq1/baseq2
+    uint infoCap;    // capacidad de info
+    uint info2Cap;   // capacidad de info2[0]/info2[1]
+
     MREP *** submatrices;
  
    	unsigned char * words; //Palabras del vocabulario de hojas ordenadas por frecuencia
-  	uint lenWords; //tamaño de las palabras del vocabulario (en bytes)
+  	uint lenWords; //tamaï¿½o de las palabras del vocabulario (en bytes)
   	uint zeroNode; //Numero de palabras diferentes del vocabulario de hojas
  
 	
@@ -172,6 +185,7 @@ uint compactTreeCheckLink(TREP * trep, uint x, uint y);
 
 
 void destroyTreeRepresentation(TREP * trep);
+void destroyTreeRepAfterCompress(TREP * trep);
 
 void saveTreeRep(TREP * trep, char * basename);
 TREP * loadTreeRepresentation(char * basename);
