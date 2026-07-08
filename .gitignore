@@ -6,3 +6,10 @@ build
 *.pg
 *.gz
 
+# Representaciones k2-tree
+*.cil
+*.il
+*.lv
+*.tr
+*.voc
+
