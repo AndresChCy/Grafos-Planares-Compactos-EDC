@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <random>
+#include <
 
 #include "bench-lib/benchmark.hpp"
 #include "sdsl/pemb.hpp"
@@ -10,7 +11,7 @@
 #include "turan/neighbours.h"
 #include "tree_builder.hpp"
 
-
+const string PATH = "benchmarks/inputs/";
 
 inline void test_degree_pemb(pemb<>& pe, std::vector<int>& vertices){
     for (int i = 0; i < vertices.size(); ++i) {
@@ -55,7 +56,8 @@ inline void test_degree_graph(Graph& g, std::vector<int>& vertices){
 int main(int argc, char* argv[]) {
   pemb<>* pe = nullptr;
   fs::path output_root = (argc > 2) ? fs::path(argv[2]) : fs::path("cds/k2_trees");
-  std::vector<std::string> archivos = {"benchmarks/inputs/planar_embedding5000000.pg"};
+  //Los archivos deben ir en una carpeta dentro de benchmarks llamado inputs, es decir /benchmarks/inputs
+  std::vector<std::string> archivos = {"planar_embedding5000000.pg", "PON OTRO ARCHIVO AQUI ", "Y OTRO MA"};
   std::random_device rd;
 	std::mt19937 gen(rd());
 
@@ -66,13 +68,13 @@ int main(int argc, char* argv[]) {
     };
 
   for(size_t i = 0; i < archivos.size(); ++i) {
-    K2TreeBuilder k2_tree_small(archivos[i], presets[0], output_root);
+    K2TreeBuilder k2_tree_small(PATH + archivos[i], presets[0], output_root);
     if (!k2_tree_small.build()) {
             std::cerr << "Fallo la construccion de " << presets[0].name << '\n';
             continue;
         }
     
-    K2TreeBuilder k2_tree_large(archivos[i], presets[1], output_root);    
+    K2TreeBuilder k2_tree_large(PATH + archivos[i], presets[1], output_root);    
     if (!k2_tree_large.build()) {
             std::cerr << "Fallo la construccion de " << presets[1].name << '\n';
             continue;
@@ -80,11 +82,11 @@ int main(int argc, char* argv[]) {
     { 
       //Por lo que vi al usar el grafo en el constructor su contenido se modifica por lo que 
       //este solo lo usamos para la destruccion
-      Graph g_aux = read_graph_from_file(archivos[i].c_str());
+      Graph g_aux = read_graph_from_file( (PATH +archivos[i]).c_str());
       pe = new pemb<>(g_aux);
     }
     
-    Graph g = read_graph_from_file(archivos[i].c_str());
+    Graph g = read_graph_from_file((PATH +archivos[i]).c_str());
     
     
     std::uniform_int_distribution<> dis(0, pe->vertices() - 1); //Para generar vertices aleatorios
