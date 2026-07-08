@@ -50,6 +50,18 @@ struct K2TreePreset {
 
 class K2TreeBuilder {
 public:
+	// Tamaños en bytes antes y despues de la compresion, mas el detalle por archivo.
+	struct CompressionSizes {
+		std::uint64_t uncompressed_bytes = 0;  // matriz de adyacencia completa (n*n bits) sin comprimir
+		std::uint64_t tr_bytes = 0;
+		std::uint64_t lv_bytes = 0;
+		std::uint64_t il_bytes = 0;            // archivo intermedio, no forma parte del arbol final
+		std::uint64_t voc_bytes = 0;
+		std::uint64_t cil_bytes = 0;
+		std::uint64_t compressed_bytes = 0;    // tr + lv + voc + cil (lo que realmente se vuelve a leer)
+		double compression_ratio = 0.0;        // compressed_bytes / uncompressed_bytes
+	};
+
 	static K2TreePreset small();
 	static K2TreePreset large();
 
@@ -75,6 +87,13 @@ public:
 	std::size_t degree(std::uint32_t vertex) const;
 	bool neighbors(std::uint32_t u, std::uint32_t v) const;
 
+	std::uint32_t node_count() const { return node_count_; }
+	std::uint64_t edge_count() const { return edge_count_; }
+
+	// Requiere haber llamado build() (y opcionalmente saveCompressed()) antes,
+	// para que los archivos .tr/.lv/.voc/.cil ya existan en disco.
+	CompressionSizes compressionSizes() const;
+
 private:
 	struct Edge {
 		std::uint32_t source = 0;
@@ -93,4 +112,6 @@ private:
 	TREP* tree_ = nullptr;
 	bool built_ = false;
 	bool compressed_ = false;
+	std::uint32_t node_count_ = 0;
+	std::uint64_t edge_count_ = 0;
 };
