@@ -95,6 +95,29 @@ bool write_voc_and_cil(TREP* trep, const fs::path& base_path)
     return true;
 }
 
+std::vector<char> to_c_buffer(const fs::path& path)
+{
+    std::string text = path.string();
+    std::vector<char> buffer(text.begin(), text.end());
+    buffer.push_back('\0');
+    return buffer;
+}
+
+std::uint64_t file_size_or_zero(const fs::path& path)
+{
+    std::error_code ec;
+    if (!fs::exists(path, ec) || ec) {
+        return 0ULL;
+    }
+
+    const auto size = fs::file_size(path, ec);
+    if (ec) {
+        return 0ULL;
+    }
+
+    return static_cast<std::uint64_t>(size);
+}
+
 } // namespace
 
 K2TreePreset K2TreeBuilder::small()
@@ -186,6 +209,9 @@ bool K2TreeBuilder::build()
     }
 
     sort_edges(edges);
+
+    node_count_ = node_count;
+    edge_count_ = static_cast<std::uint64_t>(edges.size());
 
     const int max_real_level1 = std::max(0, static_cast<int>(std::ceil(std::log(static_cast<double>(node_count)) /
                                                                          std::log(static_cast<double>(preset_.k1)))) - 1);
@@ -346,4 +372,35 @@ std::size_t K2TreeBuilder::degree(std::uint32_t vertex) const
 bool K2TreeBuilder::neighbors(std::uint32_t u, std::uint32_t v) const
 {
     return contains(u, v);
+}
+
+K2TreeBuilder::CompressionSizes K2TreeBuilder::compressionSizes() const
+{
+    CompressionSizes sizes;
+
+    // Tamaño "antes de comprimir": la matriz de adyacencia completa representada
+    // como un bitmap denso de n x n bits. Es el punto de comparacion estandar
+    // para estructuras compactas como el k2-tree y la representacion de Turan.
+    const std::uint64_t n = static_cast<std::uint64_t>(node_count_);
+    sizes.uncompressed_bytes = (n * n + 7ULL) / 8ULL;
+
+    const std::string base = artifact_base_.string();
+    sizes.tr_bytes  = file_size_or_zero(base + ".tr");
+    sizes.lv_bytes  = file_size_or_zero(base + ".lv");
+    sizes.il_bytes  = file_size_or_zero(base + ".il");
+    sizes.voc_bytes = file_size_or_zero(base + ".voc");
+    sizes.cil_bytes = file_size_or_zero(base + ".cil");
+
+    // Representacion final que realmente se vuelve a leer desde disco
+    // (ver loadTreeRepresentation en kTree.c): tr + lv + voc + cil.
+    // El .il es un archivo intermedio, superado tras compressInformationLeaves(),
+    // por lo que no se cuenta en el tamaño comprimido final.
+    sizes.compressed_bytes = sizes.tr_bytes + sizes.lv_bytes + sizes.voc_bytes + sizes.cil_bytes;
+
+    if (sizes.uncompressed_bytes > 0) {
+        sizes.compression_ratio =
+            static_cast<double>(sizes.compressed_bytes) / static_cast<double>(sizes.uncompressed_bytes);
+    }
+
+    return sizes;
 }
