@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 add_library(my-project STATIC
+  src/neighbours_turan.cpp
   src/fib_recursive.cpp
   src/fib_memoized.cpp
   src/fib_tabulated.cpp
@@ -47,6 +48,7 @@ target_compile_options(k2_tree PRIVATE -fcommon)
 
 target_link_libraries(build_tree PRIVATE k2_tree)
 target_link_libraries(compress_leaves PRIVATE k2_tree)
+target_link_libraries(my-project PRIVATE sdsl)
 
 set_target_properties(build_tree compress_leaves PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}

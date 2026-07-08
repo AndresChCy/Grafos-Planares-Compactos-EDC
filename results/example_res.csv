@@ -1,2 +1,3 @@
 explanation,label,input_size,avg_t,min_t,max_t,std_t,size_in_megabytes
-degree_pemb,benchmarks/inputs/planar_embedding5000000.pg,0,917.109719,755.741000,1810.361000,231.349055,0.000000
+degree_pemb,benchmarks/inputs/planar_embedding5000000.pg,0,1654.470719,1520.488000,2460.414000,193.399507,0.000000
+neighbour_pemb,benchmarks/inputs/planar_embedding5000000.pg,0,8460.341281,7877.898000,9302.508000,395.804212,0.000000

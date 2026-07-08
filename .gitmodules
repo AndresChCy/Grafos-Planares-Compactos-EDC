@@ -3,4 +3,4 @@
 	url = https://github.com/bletelier/bench-lib.git
 [submodule "external/sdsl"]
 	path = external/sdsl
-	url = https://github.com/jfuentess/sdsl-lite.git
+	url = https://github.com/AndresChCy/sdsl-lite.git

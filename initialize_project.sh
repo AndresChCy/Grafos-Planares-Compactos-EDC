@@ -1,7 +1,7 @@
 #!/bin/bash
 
 git submodule add https://github.com/bletelier/bench-lib.git external/bench-lib
-git submodule add https://github.com/jfuentess/sdsl-lite.git external/sdsl
+git submodule add https://github.com/AndresChCy/sdsl-lite.git external/sdsl
 git submodule update --init --recursive
 
 chmod +x compile.sh
