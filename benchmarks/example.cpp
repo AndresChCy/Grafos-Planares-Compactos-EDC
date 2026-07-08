@@ -10,9 +10,7 @@
 #include "turan/neighbours.h"
 #include "tree_builder.hpp"
 
-#include "fib-lib/fib_tabulated.hpp"
-#include "fib-lib/fib_memoized.hpp"
-#include "fib-lib/fib_recursive.hpp" 
+
 
 inline void test_degree_pemb(pemb<>& pe, std::vector<int>& vertices){
     for (int i = 0; i < vertices.size(); ++i) {
@@ -41,43 +39,16 @@ inline void test_neighbour_k2tree(K2TreeBuilder& graph, std::vector<int>& vertic
     }
 }
 
-inline int degree_graph(Graph& g, int nodo){
-  return g.getVertexLast(nodo) - g.getVertexFirst(nodo) + 1; 
-}
-
-inline bool neighbours_graph(Graph& g, int nodo1, int nodo2){
-    int first1 = g.getVertexFirst(nodo1);
-    int first2 = g.getVertexFirst(nodo2);
-    int last1 = g.getVertexLast(nodo1);
-    int last2 = g.getVertexLast(nodo2);
-
-    int ite, idx, nodo_trg;
-    if (last2 - first2 < last1 - first1){
-      ite = last2-first2 + 1;
-      idx = first2;
-      nodo_trg = nodo1;
-    }
-    else {
-      ite = last1-first1 +1 ;
-      idx = first1;
-      nodo_trg = nodo2;
-    }
-    for (int i = 0; i < ite; i++){
-      if (g.getEdgeTgt(i+idx) == nodo_trg) return true;
-    }
-    return false;
-}
-
 inline void test_neighbours_graph(Graph& g, std::vector<int>& vertices ){
   int loop = vertices.size()/ 2;
     for (int i= 0; i < loop; i++){
-      neighbours_graph(g,vertices[i], vertices[loop+i]);
+      g.neighbours(vertices[i],vertices[loop-i]);
     }
 }
 
 inline void test_degree_graph(Graph& g, std::vector<int>& vertices){
    for (int i= 0; i < vertices.size(); i++){
-      degree_graph(g,vertices[i]);
+      g.degree(vertices[i]);
     }
 }
 
@@ -106,9 +77,15 @@ int main(int argc, char* argv[]) {
             std::cerr << "Fallo la construccion de " << presets[1].name << '\n';
             continue;
         }
-
+    { 
+      //Por lo que vi al usar el grafo en el constructor su contenido se modifica por lo que 
+      //este solo lo usamos para la destruccion
+      Graph g_aux = read_graph_from_file(archivos[i].c_str());
+      pe = new pemb<>(g_aux);
+    }
+    
     Graph g = read_graph_from_file(archivos[i].c_str());
-    pe = new pemb<>(g);
+    
     
     std::uniform_int_distribution<> dis(0, pe->vertices() - 1); //Para generar vertices aleatorios
     std::vector<int> vertices;
