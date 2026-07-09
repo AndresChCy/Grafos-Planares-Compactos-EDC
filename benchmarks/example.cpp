@@ -2,7 +2,6 @@
 #include <string>
 #include <vector>
 #include <random>
-#include <
 
 #include "bench-lib/benchmark.hpp"
 #include "sdsl/pemb.hpp"
