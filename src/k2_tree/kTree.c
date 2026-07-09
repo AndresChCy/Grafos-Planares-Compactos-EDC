@@ -2017,6 +2017,14 @@ void   compressInformationLeaves(TREP * trep){
 
 			free(ilchar);
 
+			// NOTA: hash[]/_memMgr/positionInTH NO se liberan aqui a proposito.
+			// write_voc_and_cil() / saveTreeRep(), llamadas justo despues de
+			// compressInformationLeaves() en K2TreeBuilder::build(), todavia
+			// necesitan leer hash[positionInTH[i]].word para escribir el .voc.
+			// Liberarlos aqui seria un use-after-free. Se liberan en
+			// K2TreeBuilder::build() (tree_builder.cpp) una vez que el .voc
+			// ya esta escrito en disco. Ver freeHashTable() en hash.c.
+
 		}
 
 

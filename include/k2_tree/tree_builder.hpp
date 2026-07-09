@@ -32,6 +32,7 @@ void compressInformationLeaves(TREP* trep);
 void closePartialFile(void);
 void partialdestroyTreeRepresentation(TREP* trep);
 void saveTreeRep(TREP* trep, char* basename);
+void freeHashTable(void);  // libera hash[] y _memMgr (ver hash.c); usada al final de K2TreeBuilder::build()
 TREP* loadTreeRepresentation(char* basename);
 unsigned int compactTreeCheckLink(TREP* trep, unsigned int x, unsigned int y);
 unsigned int* compactTreeAdjacencyList(TREP* trep, int x);

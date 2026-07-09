@@ -264,7 +264,19 @@ bool K2TreeBuilder::build()
     compressInformationLeaves(trep);
 
     std::cerr << "build: write_voc_and_cil\n";
-    if (!write_voc_and_cil(trep, artifact_base_)) {
+    const bool voc_and_cil_ok = write_voc_and_cil(trep, artifact_base_);
+
+    // Fix fuga de memoria: compressInformationLeaves() (arriba) reserva el
+    // vocabulario hash global (hash[] + _memMgr, ver hash.c) y positionInTH,
+    // y nunca los liberaba -> quedaban vivos (y se reemplazaban sin liberar
+    // en cada build() siguiente) durante toda la vida del proceso. Ya no
+    // hacen falta una vez que write_voc_and_cil() termino de leerlos (exito
+    // o fallo), asi que se liberan aqui, antes de cualquier "return false".
+    freeHashTable();
+    free(positionInTH);
+    positionInTH = nullptr;
+
+    if (!voc_and_cil_ok) {
         std::cerr << "build: write_voc_and_cil failed\n";
         destroyTreeRepAfterCompress(trep);
         return false;
