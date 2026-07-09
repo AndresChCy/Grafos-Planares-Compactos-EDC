@@ -16,13 +16,15 @@ bool neighbours(pemb<>& graph, int nodo1, int nodo2){
         pemb<>::size_type mt ;
 		while (nxt_nodo1 < 2 * edges && nxt_nodo2 < 2 * edges)
 		{   
-            
+
 			mt = graph.mate(nxt_nodo1);
+
 			if(graph.vertex(mt) == nodo2){
                 return true;
             } 
-            
+
             mt = graph.mate(nxt_nodo2);
+
             if (graph.vertex(mt) == nodo1){
                return true;
             }

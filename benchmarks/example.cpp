@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
   pemb<>* pe = nullptr;
   fs::path output_root = (argc > 2) ? fs::path(argv[2]) : fs::path("cds/k2_trees");
   //Los archivos deben ir en una carpeta dentro de benchmarks llamado inputs, es decir /benchmarks/inputs
-  std::vector<std::string> archivos = {"planar_embedding5000000.pg", "PON OTRO ARCHIVO AQUI ", "Y OTRO MA"};
+  std::vector<std::string> archivos = {"tiger_map_hawaii.pg","planar_embedding5000000.pg", "PON OTRO ARCHIVO AQUI ", "Y OTRO MA"};
   std::random_device rd;
 	std::mt19937 gen(rd());
 
@@ -97,8 +97,9 @@ int main(int argc, char* argv[]) {
     assert(vertices.size() == 2000);
 
     assert(pe->degree(0) == k2_tree_small.degree(0));
-    assert(neighbours(*pe,0,1) == k2_tree_large.neighbors(0,1));
-    assert(k2_tree_large.neighbors(0,1) == g.neighbours(0,1));
+    assert(g.neighbours(0,1) == k2_tree_large.neighbors(0,1));
+    assert(neighbours(*pe,0,1) == neighbours(*pe,1,0));
+    assert(k2_tree_large.neighbors(0,2) == g.neighbours(0,2));
     
     BenchLib::Benchmark bench;
 
