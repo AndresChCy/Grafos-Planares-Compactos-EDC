@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
   pemb<>* pe = nullptr;
   fs::path output_root = (argc > 2) ? fs::path(argv[2]) : fs::path("cds/k2_trees");
   //Los archivos deben ir en una carpeta dentro de benchmarks llamado inputs, es decir /benchmarks/inputs
-  std::vector<std::string> archivos = {"tiger_map_hawaii.pg","planar_embedding5000000.pg", "PON OTRO ARCHIVO AQUI ", "Y OTRO MA"};
+  std::vector<std::string> archivos = {"tiger_map_hawaii.pg", "planar_embedding5000000.pg", "worldcitiespop.pg","planar_embedding1000000.pg"};
   std::random_device rd;
 	std::mt19937 gen(rd());
 
@@ -68,13 +68,14 @@ int main(int argc, char* argv[]) {
 
   for(size_t i = 0; i < archivos.size(); ++i) {
     K2TreeBuilder k2_tree_small(PATH + archivos[i], presets[0], output_root);
-    if (!k2_tree_small.build()) {
+  
+    if (!k2_tree_small.reloadCompressed()) {
             std::cerr << "Fallo la construccion de " << presets[0].name << '\n';
             continue;
         }
     
     K2TreeBuilder k2_tree_large(PATH + archivos[i], presets[1], output_root);    
-    if (!k2_tree_large.build()) {
+    if (!k2_tree_large.reloadCompressed()) {
             std::cerr << "Fallo la construccion de " << presets[1].name << '\n';
             continue;
         }
@@ -95,7 +96,7 @@ int main(int argc, char* argv[]) {
         vertices.push_back(dis(gen));
     }
     assert(vertices.size() == 2000);
-
+    assert(g.connected_graph());
     assert(pe->degree(0) == k2_tree_small.degree(0));
     assert(g.neighbours(0,1) == k2_tree_large.neighbors(0,1));
     assert(neighbours(*pe,0,1) == neighbours(*pe,1,0));
@@ -111,16 +112,18 @@ int main(int argc, char* argv[]) {
       test_neighbour_pemb(*pe,vertices);
     }).set_label(archivos[i]).set_size_in_megabytes(size_in_bytes(*pe)/(1024 * 1024));
 
+
+    bench.add("degree_k2tree_large", [&k2_tree_large, &vertices](){
+          test_degree_k2tree(k2_tree_large,vertices);
+        }).set_label(archivos[i]).set_size_in_megabytes(k2_tree_large.compressionSizes().compressed_bytes
+      / (1024*1024));
+
     bench.add("degree_k2tree_small", [&k2_tree_small, &vertices](){
       test_degree_k2tree(k2_tree_small, vertices);
     }).set_label(archivos[i]).set_size_in_megabytes(k2_tree_small.compressionSizes().compressed_bytes 
   / (1024*1024));
 
-    bench.add("degree_k2tree_large", [&k2_tree_large, &vertices](){
-      test_degree_k2tree(k2_tree_large,vertices);
-    }).set_label(archivos[i]).set_size_in_megabytes(k2_tree_large.compressionSizes().compressed_bytes
-  / (1024*1024));
-
+    
     bench.add("neighbours_k2tree_small", [&k2_tree_small, &vertices](){
       test_neighbour_k2tree(k2_tree_small, vertices);
     }).set_label(archivos[i]).set_size_in_megabytes(k2_tree_small.compressionSizes().compressed_bytes 

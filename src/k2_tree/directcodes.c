@@ -244,6 +244,19 @@ ushort * optimizationk(uint * acumFreqs,int maxInt, int * nkvalues){
 	
 	
 	//fprintf(stderr,"total bits: %d\n",bitCountInf);	
+
+	// tableSize, tableNLevels and tableKvalues[0..nBits] were only scratch
+	// space used to compute kvalues above; nothing after this function
+	// needs them. They were never freed here, so every call to
+	// optimizationk() (i.e. every createFT() call, i.e. every
+	// compressInformationLeaves() call) leaked them permanently.
+	free(tableSize);
+	free(tableNLevels);
+	for(i=0;i<=nBits;i++){
+		free(tableKvalues[i]);
+	}
+	free(tableKvalues);
+
 	return kvalues;
 	
 	
@@ -405,6 +418,12 @@ FTRep* createFT(uint *list,uint listLength){
 			rep->base_bits[i]=kvalues[i];
 		}
 	}
+
+	// kvalues (returned by optimizationk()) was only ever used as a
+	// transient lookup table: its values are now copied into
+	// rep->base/rep->base_bits above, and nothing else in this function
+	// reads it. It was never freed, so every createFT() call leaked it.
+	free(kvalues);
 
 	uint tamLevels =0;
 		

@@ -63,7 +63,24 @@ QUEUEOFFCONS * finalQUEUEOFFCONS;
 uint *div_level_table;
 
 unsigned int * positionInTH;
-unsigned int addrInTH;
+// NOTE: must be `unsigned long`, matching the `unsigned long *returnedAddr`
+// / `unsigned long *addr` parameters of search()/insertElement() (see
+// hash.h). It used to be declared `unsigned int` (4 bytes), while both
+// functions write a full `unsigned long` (8 bytes on 64-bit) through the
+// pointer they're given (`*returnedAddr = addr;`). Every single call to
+// search()/insertElement() with `&addrInTH` was therefore an 8-byte write
+// into a 4-byte global, silently corrupting the 4 bytes of memory right
+// after it (zeroNode, in this file's layout). That corruption of zeroNode
+// mid-loop is what caused positionInTH/hash to be walked with a garbage,
+// huge zeroNode value later on -- i.e. the heap-buffer-overflow seen when
+// saving large trees. Small graphs happened to "survive" only because
+// there were few enough calls (and small enough addr values) that the
+// corruption didn't matter in practice; it was undefined behavior either
+// way. ASan doesn't flag this as a global-buffer-overflow because this
+// global is a legacy tentative definition (needs -fcommon to link across
+// translation units), and ASan does not instrument common/tentative
+// globals with redzones.
+unsigned long addrInTH;
 unsigned int zeroNode;
 
 FILE * _ftr, * _flv,  * _fil;
@@ -1234,18 +1251,34 @@ MREP * createRepresentation(NODE * root, uint numberOfNodes,ulong numberOfEdges)
 	uint bits_BN_len = numberTotalLeaves;
 	uint bits_LI_len = numberLeaves*K2_2*K2_2;
 	bitRankW32Int *BT, *BN;
-	uint * bits_BT = (uint*)malloc(sizeof(uint)*((bits_BT_len+W-1)/W));
-	uint * bits_BN = (uint*)malloc(sizeof(uint)*((bits_BN_len+W-1)/W));
-	uint * bits_LI = (uint*)malloc(sizeof(uint)*((bits_LI_len+W-1)/W));
+	// bits_BT and bits_BN are wrapped in a bitRankW32Int (createBitRankW32Int
+	// below) and later passed to save()/load()/rank() in bitrankw32int.c.
+	// That module's buildRank()/rank() always read br->data[n/W] -- even
+	// when n is an exact multiple of W=32, in which case the read is
+	// masked to contribute 0 bits but the memory access itself still has
+	// to be in-bounds. save() likewise unconditionally does
+	// fwrite(br->data, sizeof(uint), n/W+1, f). So every array handed to
+	// createBitRankW32Int() must have n/W+1 words, not just ceil(n/W).
+	// The tight ceiling `(len+W-1)/W` equals n/W+1 whenever len%W != 0,
+	// but equals just n/W (one word short) whenever len is an exact
+	// multiple of 32 -- which is exactly when save() read one uint past
+	// the end of the heap allocation. bits_LI isn't wrapped in a
+	// bitRankW32Int (only plain bitget/bitset), so it doesn't strictly
+	// need the guard word, but we size it the same way for consistency
+	// and because hasAnyBitSet()/friends walk it in similarly-sized
+	// chunks.
+	uint * bits_BT = (uint*)malloc(sizeof(uint)*(bits_BT_len/W+1));
+	uint * bits_BN = (uint*)malloc(sizeof(uint)*(bits_BN_len/W+1));
+	uint * bits_LI = (uint*)malloc(sizeof(uint)*(bits_LI_len/W+1));
 	
 
 	
 	int i, k, j, queuecont, conttmp,node,div_level, pos=0;
-	for(i=0; i<(W-1+bits_BT_len)/W;i++)
+	for(i=0; i<bits_BT_len/W+1;i++)
 		bits_BT[i]=0;
-	for(i=0; i<(W-1+bits_BN_len)/W;i++)
+	for(i=0; i<bits_BN_len/W+1;i++)
 		bits_BN[i]=0;
-	for(i=0; i<(W-1+bits_LI_len)/W;i++)
+	for(i=0; i<bits_LI_len/W+1;i++)
 		bits_LI[i]=0;
 
 	char isroot=1;
@@ -2017,13 +2050,12 @@ void   compressInformationLeaves(TREP * trep){
 
 			free(ilchar);
 
-			// NOTA: hash[]/_memMgr/positionInTH NO se liberan aqui a proposito.
-			// write_voc_and_cil() / saveTreeRep(), llamadas justo despues de
-			// compressInformationLeaves() en K2TreeBuilder::build(), todavia
-			// necesitan leer hash[positionInTH[i]].word para escribir el .voc.
-			// Liberarlos aqui seria un use-after-free. Se liberan en
-			// K2TreeBuilder::build() (tree_builder.cpp) una vez que el .voc
-			// ya esta escrito en disco. Ver freeHashTable() en hash.c.
+			// NOTE: the transient hash table / MemoryManager / positionInTH built by
+			// initialize() above are intentionally NOT freed here: the caller
+			// (K2TreeBuilder::build(), via write_voc_and_cil() in tree_builder.cpp)
+			// still reads hash[positionInTH[i]].word right after this function
+			// returns, to write the .voc file. See K2TreeBuilder::build() for
+			// where this transient state actually gets released once that's done.
 
 		}
 

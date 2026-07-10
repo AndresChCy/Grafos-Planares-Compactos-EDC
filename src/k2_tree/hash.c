@@ -63,6 +63,7 @@ unsigned long initialize_hash (unsigned long sizeVoc) {
 void freeHashTable() {
 	destroyMemoryManager(_memMgr);
 	free(hash);
+	hash = NULL;
 }
 
 /*------------------------------------------------------------------

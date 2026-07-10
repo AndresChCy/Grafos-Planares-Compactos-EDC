@@ -51,6 +51,7 @@ MemoryManager createMemoryManager(void) {
 void destroyMemoryManager (MemoryManager mm){
 	register int i;
 	for (i=0; i<=mm->currentBlock;i++) free(mm->BLOCKS[i]);
+	free(mm);
 	//fprintf(stderr,"\n...Freed %ld MegaBytes... RAM\n", mm->currentBlock+1);
 }
 
@@ -61,17 +62,6 @@ void destroyMemoryManager (MemoryManager mm){
  ------------------------------------------------------------------ */
 
 void createNewMemoryBlock (MemoryManager mm) {
-	// Fix: mm->BLOCKS es un array de tamanho fijo MAX_BLOCKS. Sin este chequeo,
-	// un vocabulario que necesite mas de MAX_BLOCKS*LARGE_BLOCK_SIZE bytes
-	// (actualmente 1024*1MB = 1GB) escribe fuera de los limites del array,
-	// corrompiendo memoria del heap en vez de simplemente fallar.
-	if (mm->currentBlock >= MAX_BLOCKS) {
-		fprintf(stderr, "\nERROR: MemoryManager alcanzo MAX_BLOCKS (%d bloques de %d bytes). "
-			"Aumenta MAX_BLOCKS o LARGE_BLOCK_SIZE en MemoryManager.h para grafos de este tamanho.\n",
-			MAX_BLOCKS, LARGE_BLOCK_SIZE);
-		exit(1);
-	}
-
 	mm->BLOCKS[mm->currentBlock] = (byte *) malloc (LARGE_BLOCK_SIZE);
 
 	if (mm->BLOCKS[mm->currentBlock] == NULL) {

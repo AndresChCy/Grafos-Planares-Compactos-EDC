@@ -264,19 +264,21 @@ bool K2TreeBuilder::build()
     compressInformationLeaves(trep);
 
     std::cerr << "build: write_voc_and_cil\n";
-    const bool voc_and_cil_ok = write_voc_and_cil(trep, artifact_base_);
+    const bool voc_cil_ok = write_voc_and_cil(trep, artifact_base_);
 
-    // Fix fuga de memoria: compressInformationLeaves() (arriba) reserva el
-    // vocabulario hash global (hash[] + _memMgr, ver hash.c) y positionInTH,
-    // y nunca los liberaba -> quedaban vivos (y se reemplazaban sin liberar
-    // en cada build() siguiente) durante toda la vida del proceso. Ya no
-    // hacen falta una vez que write_voc_and_cil() termino de leerlos (exito
-    // o fallo), asi que se liberan aqui, antes de cualquier "return false".
+    // compressInformationLeaves() (above) built a transient hash table +
+    // MemoryManager + positionInTH buffer (vocabulary dedup/frequency
+    // counting for the leaves) that write_voc_and_cil() just finished
+    // reading from (hash[positionInTH[i]].word). Nothing after this point
+    // needs them, and nothing else ever freed them: freeHashTable() existed
+    // but was never called anywhere, and it didn't free positionInTH
+    // either. Every previous call to build() permanently leaked the hash
+    // table, its MemoryManager (word storage blocks), and positionInTH.
     freeHashTable();
     free(positionInTH);
     positionInTH = nullptr;
 
-    if (!voc_and_cil_ok) {
+    if (!voc_cil_ok) {
         std::cerr << "build: write_voc_and_cil failed\n";
         destroyTreeRepAfterCompress(trep);
         return false;
