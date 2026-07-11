@@ -13,3 +13,4 @@ build
 *.tr
 *.voc
 *.zip
+*.Identifier

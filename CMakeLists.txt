@@ -6,30 +6,25 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 add_library(my-project STATIC
   src/neighbours_turan.cpp
-  src/fib_recursive.cpp
-  src/fib_memoized.cpp
-  src/fib_tabulated.cpp
 )
 
-add_library(k2_tree
-  src/k2_tree/basic.c
-  src/k2_tree/bitrankw32int.c
-  src/k2_tree/directcodes.c
-  src/k2_tree/hash.c
-  src/k2_tree/kTree.c
-  src/k2_tree/MemoryManager.c
-  src/k2_tree/strcomp.c
-  src/k2_tree/grid_search.cpp
-  src/k2_tree/tree_builder.cpp
+#add_compile_options(-fcommon -fgnu89-inline)
+
+# --- Librería con el k2-tree legado + los helpers k2_easy ------------------
+add_library(k2tree_legacy STATIC
+    src/kTree.c
+    src/hash.c
+    src/MemoryManager.c
+    src/bitrankw32int.c
+    src/directcodes.c
+    src/basic.c
+    src/k2_easy.c
+    src/k2_pg_io.c
+    src/k2_partition.c
 )
 
-add_executable(build_tree
-  src/k2_tree/build_tree_main.c
-)
-
-add_executable(compress_leaves
-  src/k2_tree/compress_leaves_main.c
-)
+target_include_directories(k2tree_legacy PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(k2tree_legacy PUBLIC m)
 
 
 set(BENCHLIB_BUILD_TESTING OFF CACHE BOOL "" FORCE)
@@ -40,19 +35,19 @@ target_include_directories(my-project PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_include_directories(k2_tree PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/k2_tree
-)
+target_include_directories(k2tree_legacy PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_compile_options(k2_tree PRIVATE -fcommon)
 
-target_link_libraries(build_tree PRIVATE k2_tree)
-target_link_libraries(compress_leaves PRIVATE k2_tree)
+#target_compile_options(k2_tree_legacy PRIVATE -fcommon -fgnu89-inline -O3)
+
+#target_link_libraries(build_tree PRIVATE k2_tree)
+#target_link_libraries(compress_leaves PRIVATE k2_tree)
 target_link_libraries(my-project PRIVATE sdsl)
+target_link_libraries(k2tree_legacy PUBLIC m)
 
-set_target_properties(build_tree compress_leaves PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
-)
+#set_target_properties(build_tree compress_leaves PROPERTIES
+#  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+#)
 
 option(BUILD_TESTING "Build tests" ON)
 if(BUILD_TESTING)
@@ -66,3 +61,5 @@ if(BUILD_BENCHMARKS)
 endif()
 
 target_compile_options(my-project PRIVATE -O3)
+
+target_compile_options(k2tree_legacy PRIVATE -fcommon -fgnu89-inline -O3)

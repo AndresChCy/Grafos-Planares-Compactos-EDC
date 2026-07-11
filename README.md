@@ -1,7 +1,7 @@
-# Template básico para realizar pruebas y/o librerías en el curso de Estructuras de Datos Compactas (UdeC)
-
-## ¿Qué posee el template?
-Tienen ejemplos básicos para generar una librería, como utilizar cada carpeta, como utilizar CMakeLists. Además, viene integrado una librería de benchmark para que pueda facilitar su trabajo al momento de realizar las pruebas de rendimiento pedidas en el curso. Esta libreríá genera un csv que luego pueden plotear en su herramienta favorita (viene como ejemplo el poder graficar utilizando gnuplot, el cual debe estar instalado en su pc).
+## Como ejecutar el proyecto
+Se puede observar el codigo del benchmark en benchmakrs/example.cpp y benchmarks/bench_nodo_fijo.cpp
+Implementaciones en carpeta srcs
+Seguir las siguientes instrucciones para ejecutar los experimentos:
 
 ## ¿Cómo usar el template?
 ```
@@ -12,6 +12,9 @@ chmod +x initialize_project.sh
 ./initialize_project.sh
 ./compile.sh
 ./execute_benchmarks.sh
-./plot.sh
-./execute_tests.sh
+
 ```
+
+## Nota
+
+Lo que esta en carpetas de k2_tree es codigo deprecado y se mantiene en el codigo a modo de documentación y evidencia, la version final del k2tree es la puesta directamente en la carpeta include y src. 

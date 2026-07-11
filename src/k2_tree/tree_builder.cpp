@@ -160,20 +160,30 @@ std::vector<K2TreeBuilder::Edge> K2TreeBuilder::load_edges(const fs::path& graph
         return {};
     }
 
+    // Fix: los archivos .pg listan cada arista NO dirigida dos veces (una vez
+    // como "u v" y otra como "v u"), y "edge_count" (segunda linea del header)
+    // es la cantidad de aristas UNICAS -- el archivo en realidad trae el doble
+    // de lineas de arista. Leer exactamente "edge_count" lineas (como hacia
+    // este codigo antes) se queda con solo la mitad del archivo, sesgada hacia
+    // los vertices de menor numeracion (que aparecen primero como origen).
+    // Para un grafo de 1M nodos esto deja miles de vertices completamente
+    // aislados en el k2-tree (grado 0) que en el grafo real no lo estan,
+    // e incluso puede partir el grafo en miles de componentes inconexas.
+    // Leemos todas las lineas de arista disponibles en el archivo (igual que
+    // hace Graph::read_graph_from_file), en vez de confiar en "edge_count"
+    // como limite del bucle.
     std::vector<Edge> edges;
-    edges.reserve(edge_count);
+    edges.reserve(static_cast<std::size_t>(edge_count) * 2);
 
-    for (std::uint32_t i = 0; i < edge_count; ++i) {
-        std::uint32_t source = 0;
-        std::uint32_t target = 0;
-        if (!(input >> source >> target)) {
-            return {};
-        }
+    std::uint32_t source = 0;
+    std::uint32_t target = 0;
+    while (input >> source >> target) {
         edges.push_back(Edge{source, target});
     }
 
     return edges;
 }
+
 
 void K2TreeBuilder::sort_edges(std::vector<Edge>& edges)
 {

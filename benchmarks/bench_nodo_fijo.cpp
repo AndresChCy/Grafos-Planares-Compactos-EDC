@@ -24,14 +24,14 @@ inline void test_degree_pemb(pemb<>& pe, std::vector<int>& vertices){
 inline void test_neighbour_pemb(pemb<>& pe, std::vector<int>& vertices){
     int loop = vertices.size()/ 2;
     for (int i= 0; i < loop; i++){
-      neighbours(pe, vertices[i], vertices[loop+i]);
+      neighbours(pe, vertices[i], 2);
     }
 }
 
 inline void test_neighbours_graph(Graph& g, std::vector<int>& vertices ){
   int loop = vertices.size()/ 2;
     for (int i= 0; i < loop; i++){
-      g.neighbours(vertices[i],vertices[loop+i]);
+      g.neighbours(vertices[i],2);
     }
 }
 
@@ -50,7 +50,7 @@ inline void test_degree_k2tree(TREP* trep, std::vector<int>& vertices){
 inline void test_neighbours_k2tree(TREP * trep, std::vector<int>& vertices ){
   int loop = vertices.size()/ 2;
     for (int i= 0; i < loop; i++){
-      neighbour(trep, vertices[i], vertices[loop+i]);
+      neighbour(trep, vertices[i], 2);
     }
 }
 
@@ -62,9 +62,9 @@ int main(int argc, char* argv[]) {
 	std::mt19937 gen(rd());
 
   const char * tmpPrefix = "/tmp/k2bench_tmp"; //Archivos temporales de k2tree
-  unsigned partitionS = 19;
+  unsigned partitionS = 20;
 
-  std::string csv_name = "degree_and_neighbours";
+  std::string csv_name = "degree_and_neighbours_nodo_fijo222222";
   for(size_t i = 0; i < archivos.size(); ++i) {
     TREP * trep;
     {
@@ -97,7 +97,7 @@ int main(int argc, char* argv[]) {
     std::vector<int> vertices;
     vertices.reserve(5000);
     for(int j = 0; j < 5000; ++j){
-        vertices.push_back(dis(gen));
+        vertices.push_back(1);
     }
     assert(vertices.size() == 5000);
     assert(g.connected_graph());
